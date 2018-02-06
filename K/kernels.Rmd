@@ -1,0 +1,207 @@
+---
+title: "Mercari Price Suggestion Challenge"
+author: oooooooh!
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+---
+
+# Overview
+
+Competition URL：https://www.kaggle.com/c/mercari-price-suggestion-challenge/kernels 
+
+時程表：
+
+* February 7, 2018 - Entry deadline. You must accept the competition rules before this date in order to compete.
+* February 7, 2018 - Team Merger deadline. This is the last day participants may join or merge teams.
+* February 14, 2018 - Final submission deadline. This is the last day participants are allowed to modify Kernels, submit to competition, and to select the Kernel version for Stage 2. After this date, all the Kernels versions are recorded and will be re-run based on the selections.
+* February 15, 2018 - Stage 2 evaluation period starts. Sit back and watch the leaderboard.
+* February 21, 2018 - Stage 2 ends. Final results announced.
+
+
+# Exploratory Data Analysis (EDA)
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# 載入所需的套件
+library(data.table) # Loading data
+library(RColorBrewer) # wordcloud
+library(wordcloud) # wordcloud
+library(ggplot2) # plot
+library(stringr) 
+
+```
+
+將train.tsv資料載入，因為沒加encoding在windows上category_name會出現亂碼(mac上還沒試過)，所以下此語法：
+
+```{r}
+# fread是專門針對大量資料的語言，可以快速讀取百萬筆資料，sep = '\t'因為資料是用大空格分隔。
+train<-fread(file = '~/R/K/train.tsv', sep = '\t', header = TRUE,encoding = 'UTF-8')
+```
+
+接下來可以進行簡單的資料觀察
+
+```{r}
+# 觀察前5筆資料
+head(train,5)
+```
+
+```{r}
+# 欄位探勘
+str(train)
+```
+
+```{r}
+# 觀察各個欄位敘述統計
+summary(train)
+```
+
+從提供的Overview可以知道欄位定義如下：
+
+* train_id or test_id - the id of the listing
+* name - the title of the listing. Note that we have cleaned the data to remove text that look like prices (e.g. $20) to avoid leakage. These removed prices are represented as [rm]
+* item_condition_id - the condition of the items provided by the seller
+* category_name - category of the listing
+* brand_name
+* price - the price that the item was sold for. This is the target variable that you will predict. The unit is USD. This column doesn't exist in test.tsv since that is what you will predict.
+* shipping - 1 if shipping fee is paid by seller and 0 by buyer
+* item_description - the full description of the item. Note that we have cleaned the data to remove text that look like prices (e.g. $20) to avoid leakage. These removed prices are represented as [rm]
+
+模型為從商品的其他資訊，推測應變數價格price。首先觀察應變數資料：
+
+```{r}
+# 觀察price資料分布
+hist(train$price, main='Histogram of price')
+```
+
+資料嚴重右偏，所以用log(x+1)修正資料，想辦法讓資料偏向常態一點。
+
+```{r}
+# 取log(price+1)
+hist(log(train$price+1), main='Histogram of log  price + 1')
+```
+
+資料看起來正常一點了，後面會讓應變數做轉換，提高預測準確率。接下來我們來對其他欄位進行探勘。
+
+## train_id
+
+沒意義的東西就不看了。
+
+## name
+
+可能進行文字探勘有意義，但不是優先的順位，所以先略過。
+
+## item_condition_id
+
+賣方提供商品的狀況，因為沒有know how，所以這邊只能當單純的factor去看它，一樣來統計看看。
+
+```{r}
+table(train$item_condition_id)
+```
+
+可以看到大部份的資料集中在1，5是最少的。
+
+```{r warning=FALSE}
+# Y連續X類別變數 用anova進行變異數分析
+log_price = log(train$price+1)
+aov.item_condition_id <- aov(log_price~ train$item_condition_id)
+summary(aov.item_condition_id)
+```
+
+P-value小於0.05，95%的信心水準下有顯著相關，但不到0.01，這個變數對我們的價格似乎有些微影響。
+
+## category_name 
+
+這個欄位資料都是文字，並且分類用"/"符號分隔，每個間隔內容看起來是獨立的，這裡把他當成分類貼標來看，所以需要進行文字探勘將它做拆解。
+```{r}
+# 觀察此欄位內容
+head(train$category_name,5)
+```
+
+```{r}
+# 把所有貼標轉換成清單統計結果
+category_list<-unlist(strsplit(train$category_name,'/'))
+category_df<-as.data.frame(table(category_list))
+head(category_df[order(category_df$Freq,decreasing = T),],10)
+```
+
+```{r warning=FALSE}
+# 轉化文字雲看一下
+wordcloud(category_df$category_list, category_df$Freq, min.freq =500, random.order = F, ordered.colors = F)
+
+```
+
+可以看到女生的衣服貼標數量真的很多，比例上來看也高於其他貼標，研判據有資料參考價值，我們來看如果轉成類別會有多少元素。
+
+```{r}
+# 計算有幾列
+nrow(category_df)
+```
+
+一個950個變數如果要轉成factor可能會讓演算法跑不動，到時候可能要轉化稀疏矩陣才能進行分析，我們來看一個商品最多能有幾個貼標。
+
+```{r}
+# 計算欄位內"/"的最大值
+max(str_count(train$category_name, "/"))
+```
+
+可以把每個商品後面加四個欄位，並且根據"/"分隔，將標籤放進去，但是這樣對最後建模沒有太大幫助，最後還是決定轉為950個欄位的稀疏矩陣，比較好對應變數建立模型。
+
+## brand_name
+```{r}
+# 統計一下品牌
+brand_name_df<-as.data.frame(table(train$brand_name))
+head(brand_name_df[order(brand_name_df$Freq,decreasing = T),],10)
+```
+
+
+最多的果然是空???，畢竟大多商品不是名牌也是很正常的，在來是PINK、Nike、Victoria's Secret，難怪女裝會這麼多不是沒有原因的，我們一樣來統計名牌的總數：
+
+```{r}
+nrow(brand_name_df)
+```
+
+高達4810種名牌，看來是大大小小的名牌都進來了，我們一樣預計將之轉為稀疏矩陣處理。
+
+## shipping 
+
+從說明來看似乎跟應變數沒有太大關係，但既然他給了，一定有他的原因，我們一樣做一下多變量分析看一下。
+
+```{r}
+table(train$shipping)
+```
+
+```{r warning=FALSE}
+aov.shipping <- aov(log_price~ train$shipping)
+summary(aov.shipping)
+```
+
+想不到居然有高度相關！我們來看一下統計圖型。
+
+```{r}
+plot(aov.shipping$model)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
