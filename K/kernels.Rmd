@@ -87,10 +87,6 @@ hist(log(train$price+1), main='Histogram of log  price + 1')
 
 沒意義的東西就不看了。
 
-## name
-
-可能進行文字探勘有意義，但不是優先的順位，所以先略過。
-
 ## item_condition_id
 
 賣方提供商品的狀況，因為沒有know how，所以這邊只能當單純的factor去看它，一樣來統計看看。
@@ -145,7 +141,7 @@ nrow(category_df)
 max(str_count(train$category_name, "/"))
 ```
 
-可以把每個商品後面加四個欄位，並且根據"/"分隔，將標籤放進去，但是這樣對最後建模沒有太大幫助，最後還是決定轉為950個欄位的稀疏矩陣，比較好對應變數建立模型。
+可以把每個商品後面加5個欄位，並且根據"/"分隔，將標籤放進去，但是這樣對最後建模沒有太大幫助，最後還是決定轉為950個欄位的稀疏矩陣，比較好對應變數建立模型。
 
 ## brand_name
 ```{r}
@@ -155,7 +151,7 @@ head(brand_name_df[order(brand_name_df$Freq,decreasing = T),],10)
 ```
 
 
-最多的果然是空???，畢竟大多商品不是名牌也是很正常的，在來是PINK、Nike、Victoria's Secret，難怪女裝會這麼多不是沒有原因的，我們一樣來統計名牌的總數：
+最多的果然是空�戚�，畢竟大多商品不是名牌也是很正常的，在來是PINK、Nike、Victoria's Secret，難怪女裝會這麼多不是沒有原因的，我們一樣來統計名牌的總數：
 
 ```{r}
 nrow(brand_name_df)
@@ -182,25 +178,86 @@ summary(aov.shipping)
 plot(aov.shipping$model)
 ```
 
+分布上來看確實有些差異在，此因子看來也是重要變數。
+
+## item_description
+
+這個欄位是對商品的敘述，沒有一定的文字結構，如果用文字探勘進行單字統計，可能會非常的發散，所以我們改用字數來決定這個特徵。
+
+```{r}
+# 抓幾筆來看一下
+data.frame(item_description=train$item_description[1:5],nchar=nchar(train$item_description[1:5]))
+```
+
+```{r}
+# 檢定字數與價格相關性
+cor.test(train$price,nchar(train$item_description))
+```
+
+P-value < 0.05 顯著相關，看來商品描述的字數長度會影響我們的商品價格，為了更精確驗證我們的假設，改根據"單字數"進行統計。
+
+```{r}
+# 寫迴圈將單字數計算出來
+nword_itdes<-NULL
+for ( i in 1:length(train$item_description)){
+  nword_itdes[i]<-length(unlist(strsplit(train$item_description[i],' ')))
+}
+```
+
+```{r}
+# 將統計結果列出來
+data.frame(item_description=train$item_description[1:5],nword=nword_itdes[1:5])
+```
+
+```{r}
+# 檢定單字數與價格相關性
+cor.test(train$price,nword_itdes)
+```
+
+P-value < 0.05 顯著相關，符合我們的假設，後面會以"單字數"進行建模分析，雖然進行細部的文字探勘可以提高模型準確率，但工程浩大所以先到這裡。
+
+
+## name
+
+同上面的商品敘述一樣，我們將之轉為單字數統計：
+```{r}
+# 寫迴圈將單字數計算出來
+nword_name<-NULL
+for ( i in 1:length(train$name)){
+  nword_name[i]<-length(unlist(strsplit(train$name[i],' ')))
+}
+```
+
+```{r}
+# 將統計結果列出來
+data.frame(name=train$name[1:5],nword=nword_name[1:5])
+```
+
+```{r}
+# 檢定單字數與價格相關性
+cor.test(train$price,nword_name)
+```
+
+P-value < 0.05 顯著相關，看來商品名稱的長度與價格有顯著關係，後面也會以"單字數"進行建模分析。商品名稱的內容通常會影響著價格，但這樣要進行更細部的文字探勘，由於工程耗大所以我們先做到這樣。
 
 
 
+# Data processing
 
+從前面EDA來看，我們有了初步建模計劃：
 
+* name：轉為單字數。
+* item_condition_id：保留原本值。
+* category_name：轉為稀疏矩陣，950個。
+* brand_name：轉為稀疏矩陣，4810個。
+* shipping：保留原本值。
+* item_description：轉為單字數。
 
+我們先來看看怎麼轉稀疏矩陣。
 
+```{r}
 
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
