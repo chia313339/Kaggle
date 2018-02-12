@@ -127,7 +127,7 @@ wordcloud(category_df$category_list, category_df$Freq, min.freq =500, random.ord
 
 ```
 
-¥i¥H¬Ý¨ì¤k¥Íªº¦çªA¶K¼Ð¼Æ¶q¯uªº«Ü¦h¡A¤ñ¨Ò¤W¨Ó¬Ý¤]°ª©ó¨ä¥L¶K¼Ð¡A¬ã§P¾Ú¦³¸ê®Æ°Ñ¦Ò»ù­È¡A§Ú­Ì¨Ó¬Ý¦pªGÂà¦¨Ãþ§O·|¦³¦h¤Ö¤¸¯À¡C
+¥i¥H¬Ý¨ì¤k©Ê¶K¼Ð¼Æ¶q¯uªº«Ü¦h¡A¤ñ¨Ò¤W¨Ó¬Ý¤]°ª©ó¨ä¥L¶K¼Ð¡A¬ã§P¾Ú¦³¸ê®Æ°Ñ¦Ò»ù­È¡A§Ú­Ì¨Ó¬Ý¦pªGÂà¦¨Ãþ§O·|¦³¦h¤Ö¤¸¯À¡C
 
 ```{r}
 # ­pºâ¦³´X¦C
@@ -141,7 +141,7 @@ nrow(category_df)
 max(str_count(train$category_name, "/"))
 ```
 
-¥i¥H§â¨C­Ó°Ó«~«á­±¥[5­ÓÄæ¦ì¡A¨Ã¥B®Ú¾Ú"/"¤À¹j¡A±N¼ÐÅÒ©ñ¶i¥h¡A¦ý¬O³o¼Ë¹ï³Ì«á«Ø¼Ò¨S¦³¤Ó¤jÀ°§U¡A³Ì«áÁÙ¬O¨M©wÂà¬°950­ÓÄæ¦ìªºµ}²¨¯x°}¡A¤ñ¸û¦n¹ïÀ³ÅÜ¼Æ«Ø¥ß¼Ò«¬¡C
+¥i¥H§â¨C­Ó°Ó«~«á­±¥[4­ÓÄæ¦ì¡A¨Ã¥B®Ú¾Ú"/"¤À¹j¡A±N¼ÐÅÒ©ñ¶i¥h¡A¦ý¬O³o¼Ë¹ï³Ì«á«Ø¼Ò¨S¦³¤Ó¤jÀ°§U¡A³Ì«áÁÙ¬O¨M©wÂà¬°950­ÓÄæ¦ìªºµ}²¨¯x°}¡A¤ñ¸û¦n¹ïÀ³ÅÜ¼Æ«Ø¥ß¼Ò«¬¡C
 
 ## brand_name
 ```{r}
@@ -248,7 +248,7 @@ P-value < 0.05 ÅãµÛ¬ÛÃö¡A¬Ý¨Ó°Ó«~¦WºÙªºªø«×»P»ù®æ¦³ÅãµÛÃö«Y¡A«á­±¤]·|¥H"³æ¦r¼Æ"¶
 
 * name¡GÂà¬°³æ¦r¼Æ¡C
 * item_condition_id¡G«O¯d­ì¥»­È¡C
-* category_name¡GÂà¬°µ}²¨¯x°}¡A950­Ó¡C
+* category_name¡GÂà¬°µ}²¨¯x°}¡A950­Ó¡A¨Ã¥[¤W¶K¼Ð¼Æ¡C
 * brand_name¡GÂà¬°µ}²¨¯x°}¡A4810­Ó¡C
 * shipping¡G«O¯d­ì¥»­È¡C
 * item_description¡GÂà¬°³æ¦r¼Æ¡C
@@ -256,8 +256,162 @@ P-value < 0.05 ÅãµÛ¬ÛÃö¡A¬Ý¨Ó°Ó«~¦WºÙªºªø«×»P»ù®æ¦³ÅãµÛÃö«Y¡A«á­±¤]·|¥H"³æ¦r¼Æ"¶
 §Ú­Ì¥ý¨Ó¬Ý¬Ý«ç»òÂàµ}²¨¯x°}¡C
 
 ```{r}
-
+# ¦@¦³950­Ó¶K¼Ð
+length(unique(category_list))
 ```
+
+```{r}
+# ³o¬O²Ä¤@­Óª««~ªº¶K¼Ð¤º®e
+unlist(strsplit(train$category_name[1],'/'))
+```
+
+```{r}
+# ±N¶K¼Ð²M³æ¹ï²Ä¤@­Ó¶K¼Ð¤º®e°µmapping ¦]¬°¤Ó¦húA¥uÅã¥Ü«e10­Ó
+head(unique(category_list) %in% unlist(strsplit(train$category_name[1],'/')),10)
+```
+
+```{r}
+# Âà¤Æ¬°numeric
+head(as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[1],'/')),10))
+```
+
+¦p¦¹¤@¨Ó§Ú´N­Ì´N¥i¥H±N©Ò¦³ªº¶K¼ÐÂà¤Æ¬°¯x°}¡A¶i¦Ó©ñ¶i¥h°µºtºâ¡C¦]¬°¸ê®Æ¶q¤Ó¦h¡A§Ú­Ì¥ý©â¥X©Ò»Ý­nªº°V½m¸ê®Æ¤Î´ú¸Õ¸ê®Æ¡A¥Hnµ§¸ê®Æ©âÅç¸ÕÅç¡C§Ú­Ì§âtrainªº¸ê®Æ·í¦¨¦³­­¥ÀÅé¡A¹ïÀ³ÅÜ¼Æ¶i¦æ±Ô­z²Î­p¡C
+
+```{r}
+# »ù®æ±Ô­z²Î­p
+summary(log(train$price+1))
+var(log(train$price+1))
+sd(log(train$price+1))
+```
+
+¥H95%ªº«H¤ß¤ô·Ç¡A\alpha	=0.05¡A°Ï¶¡¦ô­p­È¬°¡G
+
+$$ \bar{x} \pm z_{\alpha/2} \frac{\sigma}{\sqrt{n}} $$
+¥O$E$¬°Ãä»Ú»~®t¡A«h:
+
+$$ E=z_{\alpha/2} \frac{\sigma}{\sqrt{n}} \Rightarrow n=\frac{z^2_{\alpha/2}\sigma^2}{E^2} $$
+
+¹ïÀ³95%«H¤ß¤ô·Ç¡A$z_{0.025}=1.96$¡A°²³]$E$¬°$0.01$¡An«h¬°$21563.47$¡A§Ú­Ì¨ú¤j·§¾ã¼Æ$22000$¡Aªí¥Ü¦³95%ªº«H¤ß¤ô·Ç¡A»~®t¤j·§$\pm 0.01$¡C
+
+```{r}
+# ©â¼Ë¹êÅç ¨ú22000¶i¦æ¸ê®Æ³B²z
+n=22000
+train_idx<-sample(seq_len(nrow(train)),n,replace = F)
+train_data<-train[train_idx]
+```
+
+```{r warning=FALSE}
+# name¡GÂà³æ¦r¦r¼Æ
+data_tmp<-NULL
+for (i in 1:length(train_data$name)){
+  data_tmp[i]<-length(unlist(strsplit(train_data$name[i],' ')))
+}
+train_data$name_num<-data_tmp
+```
+```{r}
+# item_condition_id¡G«O«ù¤£ÅÜ
+# category_name¡GÂà¬°µ}²¨¯x°} ¥ý¥[¤W¶K¼Ð¼Æ
+data_tmp<-NULL
+for (i in 1:length(train_data$category_name)){
+  data_tmp[i]<-length(unlist(strsplit(train_data$category_name[i],'/')))
+}
+train_data$category_name_cnt<-data_tmp
+```
+
+```{r}
+# category_name¡GÂà¬°µ}²¨¯x°} 950­Ó¶K¼Ð
+data_tmp<-NULL
+# ±N950­Ó¶K¼ÐÃþ§OÂà¬°list
+category_list<-unique(unlist(strsplit(train$category_name,'/')))
+# Åý¨C­Ó°Ó«~¶K¼Ð¹ïÀ³list ¦^¶ÇTRUE/FALSE ¦bÂà¬°1/0
+for (i in 1:length(train_data$category_name)){
+  data_tmp<-rbind(data_tmp,as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[i],'/'))))
+}
+train_data<-cbind(train_data,data_tmp)
+```
+
+¥Ñ©ó«~µP¹L¦h¡A­nÂà¬°4000¦h­Óµ}²¨¯x°}¹ê¦b±j¤H©ÒÃø¡A©Ò¥H¨M©w§ïÅÜ¤@¤U°µªk¡C³oÃä¨M©w®Ú¾Ú«~µP¼Æ¶q²Î­p¡A±Æ¥Xµ¥¯Å¡A¶V¦h°Ó«~ªº¼tµP³q±`¶V¼öªù¡A§Ú­Ìªº«~µPµ¥¯Å´N·|¶V°ª¡A§Ú­Ì±N«~µP®Ú¾Ú¦¸¼Æ²Î­p«á¦p¤U¡C
+
+```{r}
+# ²Î­p¥X¨C­Ó«~µP¤Î¼Æ¶q
+brand_name_df<-as.data.frame(table(train$brand_name))
+head(brand_name_df[order(brand_name_df$Freq,decreasing = T),])
+```
+
+```{r}
+# ­pºâ¥X¥X²{10¦¸¥H¤ºªº«~µP
+head(brand_name_df[brand_name_df$Freq<10,])
+nrow(brand_name_df[brand_name_df$Freq > 0 & brand_name_df$Freq < 10,])
+```
+
+³Ì¦hªº¬OµL«~µP¡A¦Ó«~µP¥X²{¦¸¼Æ¤Ö©ó10ªº¤S¦³3055­Ó¡A¥Nªí«~µP¤jªÌ«D±`¤j¡Aª½±µ±q­ì©l¸ê®Æ«ÜÃø°µ¡A©Ò¥H§Ú­Ì¤@¼Ë¨úlog¶i¦æÂà´«¡A¦A±N¤§¶i¦æ¤ÀÂe¡C
+
+```{r}
+# ±N¨S¦³«~µPªºÄæ¦ì®³±¼
+brand_name_df<-brand_name_df[!brand_name_df$Var1=='',]
+```
+
+```{r}
+# ²Î­p«~µP¼Æ¶qlog(x+1)
+hist.bn<-hist(log(brand_name_df$Freq+1))
+summary(log(brand_name_df$Freq+1))
+```
+
+§Ú­Ì®Ú¾Úª½¤è¹Ïªº¤ÀÂe¡A±N«~µP¤À¬°11­Óµ¥¯Å¡A§Ú­Ì¬Ý¤@¤U¤ÀÂeªº¦¸¼Æ¤À§O¬O¦h¤Ö¡G
+
+```{r}
+# ª½¤è¹Ïªº¤ÀÂe ¤@¦@¦³10­Ó­È
+exp(seq_len(10))-1
+```
+
+```{r}
+# ³B²z«~µPµ¥¯Å
+cut<-c(-Inf,exp(seq_len(10))-1,Inf)
+brand_name_df$grade<-cut(brand_name_df$Freq,cut,label=c(seq(11)))
+head(brand_name_df)
+```
+
+```{r}
+# ¾ã²z¤@¤U §â¸ê®Æ¦X¨Ö¶i¥h ¨ÃÅýªÅ­È=0
+brand_name_df<-data.frame(brand_name=as.character(brand_name_df$Var1),brand_grade=as.numeric(brand_name_df$grade))
+train_data<-merge(train_data, brand_name_df, by = 'brand_name',all.x = TRUE)
+train_data$brand_grade[is.na(train_data$brand_grade)==T]='0'
+```
+
+³Ì«á³Ñ¤@­Ó­nÂà´«¡Aitem_description¡GÂà¬°³æ¦r¼Æ¡C
+
+```{r}
+# item_description¡GÂà¬°³æ¦r
+data_tmp<-NULL
+for (i in 1:length(train_data$item_description)){
+  data_tmp[i]<-length(unlist(strsplit(train_data$item_description[i],' ')))
+}
+train_data$item_description_num<-data_tmp
+```
+
+```{r}
+# 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
