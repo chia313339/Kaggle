@@ -1,240 +1,213 @@
-# Mercari Price Suggestion Challenge
-# https://www.kaggle.com/c/mercari-price-suggestion-challenge/kernels
-# 2/13前提交
-
-# train_id or test_id - the id of the listing
-# name - the title of the listing. Note that we have cleaned the data to remove text that look like prices (e.g. $20) to avoid leakage. These removed prices are represented as [rm]
-# item_condition_id - the condition of the items provided by the seller
-# category_name - category of the listing
-# brand_name
-# price - the price that the item was sold for. This is the target variable that you will predict. The unit is USD. This column doesn't exist in test.tsv since that is what you will predict.
-# shipping - 1 if shipping fee is paid by seller and 0 by buyer
-# item_description - the full description of the item. Note that we have cleaned the data to remove text that look like prices (e.g. $20) to avoid leakage. These removed prices are represented as [rm]
-
-
+set.seed(3000)
 
 library(data.table) # Loading data
-library(RColorBrewer) # wordcloud
-library(wordcloud) # wordcloud
+library(stringr) 
+library(parallel)
+library(foreach)
+library(doSNOW)
+
+# fread是專門針對大量資料的語言，可以快速讀取百萬筆資料，sep = '\t'因為資料是用大空格分隔。
+train<-fread("~/R/K/train.tsv", sep = '\t', header = TRUE,encoding = 'UTF-8')
 
 
-# 載入資料 沒加encoding在windows上category_name會出現亂碼
-train<-fread(file = '~/R/K/train.tsv', sep = '\t', header = TRUE,encoding = 'UTF-8')
+#TRAIN 
+n=22000
+train_idx<-sample(seq_len(nrow(train)),n,replace = F)
+train_data<-train[train_idx]
 
-# 觀察資料
-head(train)
-str(train)
-summary(train)
-
-# 初步來看train_id 跟 name 可能沒有價值先略過
-# 觀察item_condition_id 1跟3佔大多數
-table(train$item_condition_id)
-hist(x=train$item_condition_id, 
-     main="Histogram of item_condition_id",         # 圖片的名稱
-     xlab="item_condition_id",                      # X軸的名稱
-     ylab="Frequency")
-
-# category_name 需要進行文字探勘
-category_list<-unlist(strsplit(train$category_name,'/'))
-category_df<-as.data.frame(table(category_list))
-
-wordcloud(category_df$category_list, category_df$Freq, min.freq =500, random.order = F, ordered.colors = F)
-
-
-
-
-library(stringr)
-library(dplyr) # data manipulation
-str_split_fixed(train$category_name, '/', 4)
-
-category = data.frame(train, str_split_fixed(train$category_name, '/', 4)) %>%
-  mutate(cat1=X1, cat2=X2, cat3=X3, cat4=X4) %>% select(-X1, -X2, -X3, -X4)
-
-
-sum(is.na(train$item_condition_id))
-
-
-
-
-grep("/",train$category_name[3])
-length(unlist(gregexpr("/",train$category_name[5])))
-
-
-str_count(train$category_name, "/")
-
-head(train$item_description,5)
-
-
-plot(aov.shipping$model)
-nchar(train$item_description)
-
-df<-data.frame(item_description=train$item_description,nchar(train$item_description))
-
-#---------------------------------------------------------------------------
-
-
-category_list<-unlist(strsplit(train$category_name,'/'))
-category_df<-as.data.frame(table(category_list))
-head(category_df[order(category_df$Freq,decreasing = T),],10)
-
-
-
-category<-unlist(strsplit(train$category_name[1],'/'))
-length(category)
-
-unique(category_list)
-length(unique(category_list))
-
-unique(category_list) %in% category
-
-unique(category_list) %in% category
-
-category_dummydf<-NULL
-category_dummydf<-as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[1],'/')))
-
-
-for (i in 1:5){
-  category_dummydf<-rbind(category_dummydf,as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[i],'/'))))
-}
-
-
-
-
-idx<-sample(seq_len(nrow(data1)),20000,replace = F)
-
-
-((1.96^2)*1488.885)/(0.5^2)
-
+# name：轉單字字數
 data_tmp<-NULL
 for (i in 1:length(train_data$name)){
   data_tmp[i]<-length(unlist(strsplit(train_data$name[i],' ')))
 }
+train_data$name_num<-data_tmp
 
-
+# item_condition_id：保持不變
+# category_name：轉為稀疏矩陣 先加上貼標數
+data_tmp<-NULL
+for (i in 1:length(train_data$category_name)){
+  data_tmp[i]<-length(unlist(strsplit(train_data$category_name[i],'/')))
+}
+train_data$category_name_cnt<-data_tmp
 
 # category_name：轉為稀疏矩陣 950個貼標
-data_tmp<-NULL
+category_name_tmp<-NULL
 # 將950個貼標類別轉為list
 category_list<-unique(unlist(strsplit(train$category_name,'/')))
 # 讓每個商品貼標對應list 回傳TRUE/FALSE 在轉為1/0
-for (i in 1:length(train_data$category_name)){
-  print(paste("第",i,"筆資料"))
-  data_tmp<-rbind(data_tmp,as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[i],'/'))))
-}
-  
-train_data<-cbind(data_tmp,data_tmp)
+cl <- makeCluster(4)
+# detectCores()
+registerDoSNOW(cl)
+x <- foreach( i = 1:length(train_data$category_name), .combine='rbind') %do% as.numeric(category_list %in% unlist(strsplit(train_data$category_name[i],'/')))
+stopCluster(cl)
+category_name_tmp<-as.data.frame(x)
+###
+train_data<-cbind(train_data,category_name_tmp)
 
-
-brand_name
-brand_name_list<-unique(train$brand_name)
+# 統計出每個品牌及數量
 brand_name_df<-as.data.frame(table(train$brand_name))
-brand_name_df[order(brand_name_df$Freq,decreasing = T),][1:20,]
-brand_name_df[brand_name_df$Freq>50,]
-summary(brand_name_df$Freq)
-
-hist(log(brand_name_df$Freq+1))
-hist(brand_name_df$Freq)
-
-boxplot(brand_name_df$Freq)
-
+# 將沒有品牌的欄位拿掉
 brand_name_df<-brand_name_df[!brand_name_df$Var1=='',]
 
-
-c<-c(1:100)
-cut(c,3,c('A','B','C'))
-
-24 %in% c(20,25)
-
-
-grade<-NULL
-cut<-exp(seq_len(10))-1
-for (i in 1:nrow(brand_name_df)){
-  if(brand_name_df$Freq[i]<cut[1]) grade[i]=1
-  else if(brand_name_df$Freq[i]>=cut[1] & brand_name_df$Freq[i]<cut[2]) grade[i]=2
-  else if(brand_name_df$Freq[i]>=cut[2] & brand_name_df$Freq[i]<cut[3]) grade[i]=3
-  else if(brand_name_df$Freq[i]>=cut[3] & brand_name_df$Freq[i]<cut[4]) grade[i]=4
-  else if(brand_name_df$Freq[i]>=cut[4] & brand_name_df$Freq[i]<cut[5]) grade[i]=5
-  else if(brand_name_df$Freq[i]>=cut[5] & brand_name_df$Freq[i]<cut[6]) grade[i]=6
-  else if(brand_name_df$Freq[i]>=cut[6] & brand_name_df$Freq[i]<cut[7]) grade[i]=7
-  else if(brand_name_df$Freq[i]>=cut[7] & brand_name_df$Freq[i]<cut[8]) grade[i]=8
-  else if(brand_name_df$Freq[i]>=cut[8] & brand_name_df$Freq[i]<cut[9]) grade[i]=9
-  else if(brand_name_df$Freq[i]>=cut[9] & brand_name_df$Freq[i]<cut[10]) grade[i]=10
-  else grade[i]=11
-  print(i)
-}
-
-
-
-
+# 處理品牌等級
 cut<-c(-Inf,exp(seq_len(10))-1,Inf)
 brand_name_df$grade<-cut(brand_name_df$Freq,cut,label=c(seq(11)))
-head(brand_name_df)
 
+# 整理一下 把資料合併進去 並讓空值=0
+brand_name_df<-data.frame(brand_name=as.character(brand_name_df$Var1),brand_grade=as.numeric(brand_name_df$grade))
+train_data<-merge(train_data, brand_name_df, by = 'brand_name',all.x = TRUE)
+train_data$brand_grade[is.na(train_data$brand_grade)==T]='0'
+train_data$brand_grade<-as.numeric(train_data$brand_grade)
+
+# item_description：轉為單字
 data_tmp<-NULL
+for (i in 1:length(train_data$item_description)){
+  data_tmp[i]<-length(unlist(strsplit(train_data$item_description[i],' ')))
+}
+train_data$item_description_num<-data_tmp
+
+# write.table(train_data,"~/R/MSPC.csv")
+
+train_data<-read.csv("~/R/MSPC.csv", sep = ' ', header = TRUE)
+
+sum(is.na(train_data$item_description))
+
+###
+
+Y = log(train_data$price+1)
+col_list<-names(train_data) %in% c('brand_name','train_id','name','category_name','item_description','price')
+train_data<-train_data[!col_list]
+train_data<-train_data[,-c(1,2,3,5,6,8)]
+
+train_data[] <- lapply(train_data, as.numeric)
+
+# XGBOOST
+require(xgboost)
+require(Matrix)
+
+boost <- xgboost(data = data.matrix(train_data), label = Y, max.depth = 16, eta = 0.1, print_every_n = 15, nthread = 4, nround = 1000, objective = "reg:linear")
+
+
+##
+
+log_answer <- predict(boost, data.matrix(train_data))
+
+library(Metrics)
+rmse(Y,log_answer)
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################
+####################################################################################
+####################################################################################
+####################################################################################
+
+set.seed(3000)
+
+library(data.table) # Loading data
+library(stringr) 
+
+# fread是專門針對大量資料的語言，可以快速讀取百萬筆資料，sep = '\t'因為資料是用大空格分隔。
+train<-fread("~/R/K/train.tsv", sep = '\t', header = TRUE,encoding = 'UTF-8')
+
+
+#TRAIN 
+n=10000
+test_idx<-sample(seq_len(nrow(train)),n,replace = F)
+test_data<-train[test_idx]
+
+# name：轉單字字數
+data_tmp<-NULL
+for (i in 1:length(test_data$name)){
+  data_tmp[i]<-length(unlist(strsplit(test_data$name[i],' ')))
+}
+test_data$name_num<-data_tmp
+
+# item_condition_id：保持不變
+# category_name：轉為稀疏矩陣 先加上貼標數
+data_tmp<-NULL
+for (i in 1:length(test_data$category_name)){
+  data_tmp[i]<-length(unlist(strsplit(test_data$category_name[i],'/')))
+}
+test_data$category_name_cnt<-data_tmp
+
+# category_name：轉為稀疏矩陣 950個貼標
+category_name_tmp<-NULL
 # 將950個貼標類別轉為list
 category_list<-unique(unlist(strsplit(train$category_name,'/')))
 # 讓每個商品貼標對應list 回傳TRUE/FALSE 在轉為1/0
-for (i in 1:length(train_data$category_name)){
-  data_tmp<-rbind(data_tmp,as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[i],'/'))))
-  print(i)
-  }
+cl <- makeCluster(4)
+registerDoSNOW(cl)
+x <- foreach( i = 1:length(test_data$category_name), .combine='rbind') %do% as.numeric(category_list %in% unlist(strsplit(test_data$category_name[i],'/')))
+#stopCluster(cl)
+category_name_tmp<-as.data.frame(x)
+###
+test_data<-cbind(test_data,category_name_tmp)
 
-write.csv(train_data,'kaggle.csv')
+# 統計出每個品牌及數量
+brand_name_df<-as.data.frame(table(train$brand_name))
+# 將沒有品牌的欄位拿掉
+brand_name_df<-brand_name_df[!brand_name_df$Var1=='',]
 
-sum(is.na(train_data$brand_grade))
+# 處理品牌等級
+cut<-c(-Inf,exp(seq_len(10))-1,Inf)
+brand_name_df$grade<-cut(brand_name_df$Freq,cut,label=c(seq(11)))
 
+# 整理一下 把資料合併進去 並讓空值=0
+brand_name_df<-data.frame(brand_name=as.character(brand_name_df$Var1),brand_grade=as.numeric(brand_name_df$grade))
+test_data<-merge(test_data, brand_name_df, by = 'brand_name',all.x = TRUE)
+test_data$brand_grade[is.na(test_data$brand_grade)==T]='0'
+test_data$brand_grade<-as.numeric(test_data$brand_grade)
 
+# item_description：轉為單字
+data_tmp<-NULL
+for (i in 1:length(test_data$item_description)){
+  data_tmp[i]<-length(unlist(strsplit(test_data$item_description[i],' ')))
+}
+test_data$item_description_num<-data_tmp
 
-train_data$brand_grade.x[train_data$brand_grade.x=='3',]
+# write.table(test_data,"~/R/MSPC.csv")
 
-table(train_data$brand_grade.x)
+test_data<-read.csv("~/R/MSPC.csv", sep = ' ', header = TRUE)
 
-
-x <- cbind(c("Tom", "Joe", "Vicky"), c(27, 29, 28))
-y <- cbind(c("Tom", "Joe", "Vicky"), c(178, 186, 168))
-colnames(x) <- c("name", "age")
-colnames(y) <- c("name", "tall")
-
-
-merge(x, y, by = "name",all.x = TRUE)
-
-x <- cbind(c("Tom", "Joe", "Vicky", "Bob"), c(27, 29, 28, 25))
-y <- cbind(c("Tom", "Joe", "Vicky", "Bruce"), c(178, 186, 168, 170))
-colnames(x) <- c("name", "age")
-colnames(y) <- c("name", "tall")
-
-
-merge(x, y, by = "name",all.x = TRUE)
-
-
-
-
-sum(is.na(train_data))
-
-
-train_data$brand_grade==1
-train_data$brand_name
-
-train_data$brand_grade[is.na(train_data$brand_grade)==T]='0'
+sum(is.na(test_data$name_num))
 
 
 
-train_data<-train_data[names(train_data)!='brand_grade']
+###
 
-train_data$brand_grade
+Y = log(test_data$price+1)
 
-str(train_data)
-str(brand_name_df)
+col_list<-names(test_data) %in% c('brand_name','train_id','name','category_name','item_description','price')
+test_data<-test_data[!col_list]
+test_data<-test_data[,-c(1,2,3,5,6,8)]
 
-brand_name_df$brand_name<-as.character(brand_name_df$brand_name)
-brand_name_df$brand_grade<-as.numeric(brand_name_df$brand_grade)
+test_data[] <- lapply(test_data, as.numeric)
+
+# XGBOOST
+require(xgboost)
+require(Matrix)
+
+##
+
+log_answer <- predict(boost, data.matrix(test_data))
+
+library(Metrics)
+rmse(Y,log_answer)
 
 
-sum(is.na(train_data$brand_grade ))
 
 
-table(train_data$brand_grade)
-train_data<-cbind(train_data,category_name_tmp)
+
 
 
 

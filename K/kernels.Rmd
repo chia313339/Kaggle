@@ -325,7 +325,7 @@ data_tmp<-NULL
 category_list<-unique(unlist(strsplit(train$category_name,'/')))
 # 讓每個商品貼標對應list 回傳TRUE/FALSE 在轉為1/0
 for (i in 1:length(train_data$category_name)){
-  data_tmp<-rbind(data_tmp,as.numeric(unique(category_list) %in% unlist(strsplit(train$category_name[i],'/'))))
+  data_tmp<-rbind(data_tmp,as.numeric(unique(category_list) %in% unlist(strsplit(train_data$category_name[i],'/'))))
 }
 train_data<-cbind(train_data,data_tmp)
 ```
